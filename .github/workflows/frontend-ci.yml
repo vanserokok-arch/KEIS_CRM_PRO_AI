@@ -1,4 +1,5 @@
 name: Frontend CI
+
 on:
   push:
     branches: [ main ]
@@ -7,6 +8,7 @@ on:
       - "index.html"
       - "package.json"
       - "package-lock.json"
+      - "vite.config.*"
       - "vite.config.ts"
       - ".github/workflows/frontend-ci.yml"
   pull_request:
@@ -15,7 +17,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Use Node 20
         uses: actions/setup-node@v4
@@ -26,6 +29,9 @@ jobs:
       - name: Install deps
         run: npm ci
 
+      - name: Type check
+        run: npx tsc --noEmit
+
       - name: Build
         run: npm run build
 
@@ -34,3 +40,4 @@ jobs:
         with:
           name: frontend-dist
           path: dist
+          if-no-files-found: error
