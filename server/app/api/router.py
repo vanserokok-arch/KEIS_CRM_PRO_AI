@@ -2,18 +2,7 @@
 from fastapi import APIRouter
 
 # Импортируем подмодули v1, каждый должен экспортировать `router`
-from .v1 import (
-    auth,
-    users,
-    deals,
-    tasks,
-    payroll,
-    analytics,
-    notifications,
-    files,
-    ai,
-    settings,
-)
+from .v1 import auth, users, deals, tasks, payroll, analytics, notifications, files, ai, settings  # noqa: F401
 
 router = APIRouter()
 
