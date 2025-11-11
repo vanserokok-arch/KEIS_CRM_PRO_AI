@@ -1,0 +1,32 @@
+schema: v1
+name: KEIS Autofix
+version: 1.0.0
+
+models:
+  - name: gpt-4o
+    provider: openai
+    with:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+rules:
+  - |
+    Исправляй только то, что указано в отчёте audit. При конфликте — предложи патч.
+    При правках сохраняй стиль кода, алиасы, типы TypeScript и существующие экспорт-контракты.
+
+commands:
+  - name: apply_fixes
+    description: "Применяет патчи по результатам аудита"
+    prompt: |
+      Пройди по последнему отчёту аудита и предложи патчи (unified diff) для:
+      - путей импорта, alias "@/…",
+      - axios/http настройки,
+      - мелких типовых ошибок TS/React,
+      - отсутствующих export/import.
+      Затем примени патчи.
+    tools:
+      - problems
+      - edit
+      - git_diff
+      - search:
+          paths: ["src", "server"]
+          maxFiles: 500

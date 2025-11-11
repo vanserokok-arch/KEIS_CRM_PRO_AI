@@ -1,0 +1,42 @@
+schema: v1
+name: KEIS Dev Build
+version: 1.0.0
+
+models:
+  - name: gpt-4o
+    provider: openai
+    with:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+rules:
+  - |
+    Генерируй НЕДОСТАЮЩИЕ компоненты по найденным TODO:
+    - Kanban: src/modules/kanban/components/{Board,Column,ColumnHeader,DealCard}.tsx
+    - Toolbar: src/modules/toolbar/components/{MenuButton,SearchDeals,ViewSwitch}.tsx
+    - List: src/modules/list/components/{ColumnsConfigurator,DealsTable}.tsx
+    - Стили: если нет — пиши в src/styles/index.css (минимально, без библиотек).
+    Обязательные требования:
+    - React + TSX, именованный export + default где уместно.
+    - Импорты через alias "@/…" (соответствует tsconfig.json).
+    - Не ломать существующую сборку; если не уверен — оставляй TODO-комментарий.
+    - Для API используй "@/shared/api/http".
+    - Компоненты должны рендерить валидный JSX без внешних данных.
+
+commands:
+  - name: generate_missing
+    description: "Создаёт минимальные шаблоны вместо заглушек"
+    prompt: |
+      Просканируй src на пустые/заглушки и создай минимальные реализации файлов,
+      которых не хватает, строго по структуре проекта. Добавь простую разметку,
+      типы пропсов и placeholder-логику.
+    tools:
+      - search:
+          paths: ["src"]
+          maxFiles: 400
+      - edit
+      - problems
+      - git_diff
+
+schedule:
+  cron: "*/30 * * * *"
+  timezone: "Europe/Moscow"

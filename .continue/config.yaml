@@ -1,0 +1,13 @@
+schema: v1
+models:
+  - name: gpt-4o-mini
+    provider: openai
+    apiKey: ${env.OPENAI_API_KEY}
+    roles: ["chat", "edit", "autocomplete"]
+ctx:
+  - provider: "problems"         # собирать ошибки из VS Code
+  - provider: "git_diff"         # диффы
+  - provider: "folder"
+    args: { path: "src" }        # основной код
+  - provider: "search"
+    args: { query: "kanban|toolbar|list|api|types|routes" }

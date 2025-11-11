@@ -1,0 +1,14 @@
+name: "Dev Build Agent"
+description: "Следит за появлением TODO и создает недостающие файлы"
+version: 1.0
+
+schedule:
+  cron: "*/30 * * * *"  # каждые 30 минут
+  timezone: "Europe/Moscow"
+
+commands:
+  - name: generate_missing
+    prompt: >
+      Просканируй проект KEIS_CRM_PRO_AI на наличие незаполненных компонентов (// TODO)
+      и создай минимальные рабочие шаблоны для каждого такого файла с корректным импортом
+      и экспортом в существующих структурах.

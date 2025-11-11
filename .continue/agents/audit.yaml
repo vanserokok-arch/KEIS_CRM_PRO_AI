@@ -1,0 +1,33 @@
+schema: v1
+name: KEIS Audit
+version: 1.0.0
+
+models:
+  - name: gpt-4o-mini
+    provider: openai
+    with:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+commands:
+  - name: analyze
+    description: "Статический аудит src + server. Ищет TODO/пустые файлы/дубликаты."
+    prompt: |
+      Проведи аудит проекта. Найди:
+      - пустые/заглушки (// TODO, /* TODO */, файлы без кода),
+      - конфликты и дубли (css/tsx/ts),
+      - несоответствия alias "@/…" и путей импорта,
+      - несовпадения API (axios baseURL, отсутствующие эндпоинты),
+      - ошибки конфигурации Vite/TS/ESLint.
+      Выведи отчёт в Markdown с:
+      1) кратким резюме; 2) списком проблем с файлами/строками; 3) планом фикса (патчи).
+    tools:
+      - search:
+          paths: ["src", "server"]
+          maxFiles: 500
+      - problems
+      - folder:
+          path: "src"
+          maxFiles: 300
+      - folder:
+          path: "server"
+          maxFiles: 200

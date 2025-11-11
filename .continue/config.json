@@ -1,0 +1,25 @@
+{
+  "models": [
+    {
+      "title": "GPT-4.1 (chat/edit)",
+      "provider": "openai",
+      "model": "gpt-4.1",
+      "apiKey": "${env:OPENAI_API_KEY}",
+      "roles": [
+        "chat",
+        "edit",
+        "autocomplete"
+      ]
+    }
+  ],
+  "allowFileEdits": true,
+  "allowCommands": true,
+  "context": {
+    "default": [
+      "current_file",
+      "open_files",
+      "problems",
+      "git_diff"
+    ]
+  }
+}

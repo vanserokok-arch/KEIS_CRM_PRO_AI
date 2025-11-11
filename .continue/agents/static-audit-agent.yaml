@@ -1,0 +1,15 @@
+name: "KEIS CRM Audit Agent"
+description: "Ежедневно анализирует проект KEIS_CRM_PRO_AI и предлагает правки."
+version: 1.0
+
+schedule:
+  cron: "0 12 * * *"   # каждый день в 12:00 (можно изменить время)
+  timezone: "Europe/Moscow"
+
+commands:
+  - name: analyze
+    prompt: "Проанализируй весь проект (src и server) и создай Markdown-отчёт об ошибках, дубликатах и неиспользуемых файлах."
+  - name: fix
+    prompt: "Исправь найденные проблемы точечно, сохраняя структуру проекта и стиль кода."
+  - name: refactor
+    prompt: "После исправления выполни лёгкий рефакторинг без изменения логики."
