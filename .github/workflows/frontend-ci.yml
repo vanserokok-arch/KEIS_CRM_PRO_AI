@@ -25,9 +25,10 @@ jobs:
         with:
           node-version: "20"
           cache: "npm"
+          check-latest: true
 
       - name: Install deps
-        run: npm ci
+        run: npm install 
 
       - name: Type check
         run: npx tsc --noEmit
