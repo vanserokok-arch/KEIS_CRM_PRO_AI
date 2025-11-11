@@ -1,0 +1,13 @@
+name: Build All
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  frontend:
+    uses: ./.github/workflows/frontend-ci.yml
+
+  backend:
+    uses: ./.github/workflows/backend-ci.yml
