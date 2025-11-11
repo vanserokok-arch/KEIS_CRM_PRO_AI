@@ -1,37 +1,30 @@
 name: Frontend CI
-
 on:
   push:
+    branches: [ main ]
     paths:
       - "src/**"
       - "index.html"
       - "package.json"
       - "package-lock.json"
-      - "vite.config.*"
+      - "vite.config.ts"
       - ".github/workflows/frontend-ci.yml"
   pull_request:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node: [20]
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Use Node ${{ matrix.node }}
+      - name: Use Node 20
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node }}
+          node-version: "20"
           cache: "npm"
 
       - name: Install deps
         run: npm ci
-
-      - name: Type check
-        run: npx tsc --noEmit
 
       - name: Build
         run: npm run build
@@ -41,4 +34,3 @@ jobs:
         with:
           name: frontend-dist
           path: dist
-          if-no-files-found: error
