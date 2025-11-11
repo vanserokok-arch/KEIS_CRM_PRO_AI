@@ -34,7 +34,8 @@ jobs:
         run: ruff check .
 
       - name: Import smoke check
-        run: python -c "import main; print('OK: main importable')"
+        run: |
+          python -c "import main; print('OK: main importable')"
 
       - name: Run tests (if present)
         if: ${{ hashFiles('server/tests/**') != '' }}
