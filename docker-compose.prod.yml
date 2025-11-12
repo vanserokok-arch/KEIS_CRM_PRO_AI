@@ -1,13 +1,11 @@
 services:
   app:
-    build:
-      context: .                 # контекст — корень репо
-      dockerfile: server/Dockerfile
-      target: prod
+    image: ghcr.io/vanserokok-arch/keis_crm_pro_ai-backend:latest
+    pull_policy: always
     env_file:
-      - ./server/.env           # если нужен .env для бэка
-    ports:
-      - "8000:8000"
+      - ./server/.env           # переменные окружения для бэка
     environment:
-      - PUBLIC_API_BASE=/api
+      - PUBLIC_API_BASE=/api    # базовый URL API, под который собран фронт
+    ports:
+      - "8000:8000"             # внешний порт -> внутренний 8000
     restart: unless-stopped
