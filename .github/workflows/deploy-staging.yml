@@ -2,38 +2,67 @@ name: Deploy to Staging Server
 
 on:
   push:
-    branches: [ staging ]
-
-env:
-  IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/keis-crm-pro-ai
-  IMAGE_TAG: ${{ github.sha }}
+    branches: [staging]
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
-      - name: SSH to staging server and deploy
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Load SSH key
+        uses: webfactory/ssh-agent@v0.9.0
         with:
-          host: ${{ secrets.STAGING_HOST }}
-          username: ${{ secrets.STAGING_USER }}
-          key: ${{ secrets.STAGING_KEY }}
-          script: |
-            set -e
-            echo "Deploying KEIS CRM PRO AI to staging..."
-            mkdir -p /srv/keis && cd /srv/keis
-            cat > docker-compose.yml <<'YML'
-            services:
-              app:
-                image: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-                environment:
-                  PUBLIC_API_BASE: "https://staging.your-domain.com/api"
-                ports:
-                  - "8000:8000"
-                restart: unless-stopped
-            YML
-            docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
-            docker pull ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-            docker compose up -d
-            docker image prune -f
+          ssh-private-key: ${{ secrets.STAGING_KEY }}
+
+      - name: Add host to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.STAGING_HOST }} >> ~/.ssh/known_hosts
+
+      - name: SSH smoke test
+        run: |
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
+            'docker --version || { echo "Docker is not installed on the server"; exit 1; }'
+
+      - name: Deploy compose on server (Docker Hub)
+        run: |
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
+            "export DOCKER_USER='${{ secrets.DOCKER_USERNAME }}'; export DOCKER_PASS='${{ secrets.DOCKER_PASSWORD }}'; bash -s" <<'EOSSH'
+          set -euo pipefail
+          mkdir -p /srv/keis
+          export COMPOSE_PROJECT_NAME=keis
+
+          # If Docker Hub credentials are provided (private repo or rate limits), login safely via stdin
+          if [ -n "${DOCKER_USER:-}" ] && [ -n "${DOCKER_PASS:-}" ]; then
+            echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin || true
+          fi
+
+          # Write docker-compose.yml on the server (pulling image from Docker Hub)
+          cat > /srv/keis/docker-compose.yml <<'YML'
+          services:
+            app:
+              image: docker.io/vanserokok/keis-crm-pro-ai:latest
+              pull_policy: always
+              environment:
+                PUBLIC_API_BASE: http://localhost:8000/api
+              ports:
+                - "8000:8000"
+              restart: unless-stopped
+          YML
+
+          # Choose compose CLI
+          if docker compose version >/dev/null 2>&1; then
+            COMPOSE="docker compose"
+          else
+            COMPOSE="docker-compose"
+          fi
+
+          $COMPOSE -f /srv/keis/docker-compose.yml pull --quiet || true
+          $COMPOSE -f /srv/keis/docker-compose.yml up -d
+          docker image prune -f >/dev/null 2>&1 || true
+          EOSSH

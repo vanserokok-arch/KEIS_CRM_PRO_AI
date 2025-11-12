@@ -3,6 +3,15 @@ name: Build and Push Docker Image
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:
+
+# allow pushing to GHCR
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE_NAME: keis_crm_pro_ai
 
 jobs:
   build-and-push:
@@ -15,18 +24,44 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # Login to Docker Hub (optional; skip if you don't use Docker Hub)
       - name: Log in to Docker Hub
+        if: ${{ secrets.DOCKER_USERNAME != '' && secrets.DOCKER_PASSWORD != '' }}
         uses: docker/login-action@v3
         with:
+          registry: docker.io
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build and push image
+      # Login to GitHub Container Registry (GHCR) to publish images there as well
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare tags
+        id: prep
+        run: |
+          SHA_TAG=${GITHUB_SHA}
+          echo "sha=${SHA_TAG}" >> "$GITHUB_OUTPUT"
+          echo "dh_latest=docker.io/${{ secrets.DOCKER_USERNAME }}/$IMAGE_NAME:latest" >> "$GITHUB_OUTPUT"
+          echo "dh_sha=docker.io/${{ secrets.DOCKER_USERNAME }}/$IMAGE_NAME:${SHA_TAG}" >> "$GITHUB_OUTPUT"
+          echo "ghcr_latest=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/$IMAGE_NAME:latest" >> "$GITHUB_OUTPUT"
+          echo "ghcr_sha=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/$IMAGE_NAME:${SHA_TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push image (Docker Hub + GHCR)
         uses: docker/build-push-action@v5
         with:
           context: .
           file: server/Dockerfile
           push: true
+          # use inline cache to speed up subsequent builds
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           tags: |
-            ${{ secrets.DOCKER_USERNAME }}/keis-crm-pro-ai:latest
-            ${{ secrets.DOCKER_USERNAME }}/keis-crm-pro-ai:${{ github.sha }}
+            ${{ steps.prep.outputs.dh_latest }}
+            ${{ steps.prep.outputs.dh_sha }}
+            ${{ steps.prep.outputs.ghcr_latest }}
+            ${{ steps.prep.outputs.ghcr_sha }}
