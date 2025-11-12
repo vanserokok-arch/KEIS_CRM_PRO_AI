@@ -2,38 +2,51 @@ name: Deploy to Staging Server
 
 on:
   push:
-    branches: [ staging ]
-
-env:
-  IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/keis-crm-pro-ai
-  IMAGE_TAG: ${{ github.sha }}
+    branches: [staging]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: SSH to staging server and deploy
+      - name: SSH to staging and deploy
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.STAGING_HOST }}
-          username: ${{ secrets.STAGING_USER }}
-          key: ${{ secrets.STAGING_KEY }}
+          host: ${{ secrets.STAGING_HOST }}      # 94.241.141.3
+          username: ${{ secrets.STAGING_USER }}  # root
+          key: ${{ secrets.STAGING_KEY }}        # ПРИВАТНЫЙ ключ (многострочный)
+          port: 22
+          script_stop: true
+          timeout: 2m
+          command_timeout: 2m
           script: |
-            set -e
-            echo "Deploying KEIS CRM PRO AI to staging..."
-            mkdir -p /srv/keis && cd /srv/keis
-            cat > docker-compose.yml <<'YML'
+            set -euo pipefail
+
+            mkdir -p /srv/keis
+
+            # docker-compose.yml для сервера
+            cat >/srv/keis/docker-compose.yml <<'YML'
             services:
               app:
-                image: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+                image: ghcr.io/vanserokok-arch/keis_crm_pro_ai:latest
+                # Если пушите в Docker Hub, замените строку выше на:
+                # image: ${DOCKER_USER}/keis_crm_pro_ai:latest
                 environment:
-                  PUBLIC_API_BASE: "https://staging.your-domain.com/api"
+                  PUBLIC_API_BASE: http://localhost:8000/api
                 ports:
                   - "8000:8000"
                 restart: unless-stopped
             YML
-            docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
-            docker pull ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-            docker compose up -d
-            docker image prune -f
+
+            # Логин в реестр (Docker Hub) — если используете Docker Hub
+            echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin || true
+
+            # Подтянуть актуальный образ и поднять
+            if docker compose version >/dev/null 2>&1; then
+              COMPOSE="docker compose"
+            else
+              COMPOSE="docker-compose"
+            fi
+
+            $COMPOSE -f /srv/keis/docker-compose.yml pull
+            $COMPOSE -f /srv/keis/docker-compose.yml up -d
