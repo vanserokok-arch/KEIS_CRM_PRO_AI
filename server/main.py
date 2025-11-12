@@ -118,11 +118,27 @@ async def list_deals():
     return {"items": [], "total": 0}
 
 
+
 @api_v1.get("/users", summary="Список пользователей (плейсхолдер)")
 async def list_users():
     return {"items": [], "total": 0}
 
 
+# -----------------------------
+# Base API (без версии): /api/health, /api/version
+# -----------------------------
+api_base = APIRouter(prefix=settings.API_PREFIX, tags=["api"])
+
+@api_base.get("/health", summary="Проверка состояния API (без версии)")
+async def api_health_base():
+    return {"status": "ok", "service": settings.APP_NAME, "version": settings.APP_VERSION}
+
+@api_base.get("/version", summary="Версия сервиса (без версии)")
+async def api_version_base():
+    return {"version": settings.APP_VERSION}
+
+
+app.include_router(api_base)
 app.include_router(api_v1)
 
 
