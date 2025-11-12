@@ -1,13 +1,21 @@
-node_modules/
-dist/
-.git/
+.git
+.gitignore
 .vscode/
+.idea/
+**/.DS_Store
+
+# Python
 **/__pycache__/
-**/.pytest_cache/
-**/.mypy_cache/
-.DS_Store
-*.log
-*.env
-*.env.*
-docker-compose*.yml
-.github/
+**/*.py[cod]
+server/.venv/
+server/venv/
+
+# Node
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Env/секреты
+.env
+.env.*

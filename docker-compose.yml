@@ -1,24 +1,50 @@
 services:
+  # === Production-style backend (uses monorepo Dockerfile, serves built SPA from /app/dist) ===
   backend:
+    profiles: ["prod"]
     build:
-      context: ./server
-      target: dev
-    env_file:
-      - ./server/.env
+      context: .
+      dockerfile: Dockerfile
+      target: prod
+    environment:
+      PUBLIC_API_BASE: /api
     ports:
-      - "8001:8000"
-    volumes:
-      - ./server:/app
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app
+      - "8000:8000"   # prod maps 8000->8000
     networks:
       - keis_crm_dev
 
+  # === Developer backend with hot-reload (mounts ./server and runs uvicorn --reload) ===
+  backend-dev:
+    profiles: ["dev"]
+    image: python:3.11-slim
+    working_dir: /app
+    env_file:
+      - ./server/.env
+    environment:
+      PUBLIC_API_BASE: /api
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; urllib.request.urlopen('http://127.0.0.1:8000/health'); sys.exit(0)"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    ports:
+      - "8001:8000"   # dev backend on 8001 so Vite can call it
+    volumes:
+      - ./server:/app
+    command: >-
+      sh -lc "pip install --no-cache-dir -r /app/requirements.txt && uvicorn main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app"
+    networks:
+      - keis_crm_dev
+
+  # === Frontend dev server (Vite) ===
   frontend:
+    profiles: ["dev"]
     image: node:20
     working_dir: /app
     environment:
       NODE_ENV: development
-      npm_config_production: "false"   # обязателен, чтобы ставились devDependencies (vite)
+      npm_config_production: "false"   # ensure devDependencies (vite) are installed
       CHOKIDAR_USEPOLLING: "true"
       VITE_API_BASE: http://localhost:8001
     ports:
@@ -28,7 +54,8 @@ services:
       - /app/node_modules
     command: sh -lc "npm ci && npm run dev -- --host"
     depends_on:
-      - backend
+      backend-dev:
+        condition: service_healthy
     networks:
       - keis_crm_dev
 
