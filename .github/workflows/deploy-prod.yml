@@ -1,0 +1,44 @@
+
+
+name: Deploy to Production Server
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Docker image tag to deploy (sha or latest)"
+        required: true
+        default: "latest"
+
+env:
+  IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/keis-crm-pro-ai
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: SSH to production server and deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_KEY }}
+          script: |
+            set -e
+            echo "Deploying KEIS CRM PRO AI to production..."
+            mkdir -p /srv/keis && cd /srv/keis
+            cat > docker-compose.yml <<'YML'
+            services:
+              app:
+                image: ${{ env.IMAGE_NAME }}:${{ github.event.inputs.image_tag }}
+                environment:
+                  PUBLIC_API_BASE: "https://api.your-domain.com"
+                ports:
+                  - "80:8000"
+                restart: unless-stopped
+            YML
+            docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+            docker pull ${{ env.IMAGE_NAME }}:${{ github.event.inputs.image_tag }}
+            docker compose up -d
+            docker image prune -f

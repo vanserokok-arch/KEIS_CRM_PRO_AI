@@ -1,0 +1,39 @@
+name: Deploy to Staging Server
+
+on:
+  push:
+    branches: [ staging ]
+
+env:
+  IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/keis-crm-pro-ai
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: SSH to staging server and deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.STAGING_KEY }}
+          script: |
+            set -e
+            echo "Deploying KEIS CRM PRO AI to staging..."
+            mkdir -p /srv/keis && cd /srv/keis
+            cat > docker-compose.yml <<'YML'
+            services:
+              app:
+                image: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+                environment:
+                  PUBLIC_API_BASE: "https://staging.your-domain.com/api"
+                ports:
+                  - "8000:8000"
+                restart: unless-stopped
+            YML
+            docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+            docker pull ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+            docker compose up -d
+            docker image prune -f

@@ -9,7 +9,7 @@ from typing import List
 from fastapi import FastAPI, APIRouter, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response
 from starlette.middleware.gzip import GZipMiddleware
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     APP_VERSION: str = "0.1.0"
 
     # Где искать собранный фронт (папка dist)
-    FRONT_DIST: Path = Path(__file__).resolve().parent.parent / "dist"
+    FRONT_DIST: Path = Path(__file__).resolve().parent / "dist"
 
     # Префикс API (оставляем /api для фронтового прокси/alias)
     API_PREFIX: str = "/api"
@@ -82,6 +82,18 @@ app.add_middleware(
     allow_headers=settings.CORS_ALLOW_HEADERS,
 )
 
+
+# -----------------------------
+# Runtime env.js endpoint
+# -----------------------------
+
+@app.get("/env.js", include_in_schema=False)
+def env_js():
+    api = os.getenv("PUBLIC_API_BASE", "/api")
+    return Response(
+        media_type="application/javascript",
+        content=f'window.__ENV__={{API_BASE:"{api}"}};'
+    )
 
 # -----------------------------
 # API v1 роутер (плейсхолдеры)

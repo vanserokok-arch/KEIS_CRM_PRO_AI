@@ -1,0 +1,13 @@
+services:
+  app:
+    build:
+      context: .                 # контекст — корень репо
+      dockerfile: server/Dockerfile
+      target: prod
+    env_file:
+      - ./server/.env           # если нужен .env для бэка
+    ports:
+      - "8000:8000"
+    environment:
+      - PUBLIC_API_BASE=/api
+    restart: unless-stopped

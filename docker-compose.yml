@@ -1,6 +1,36 @@
-version: '3.9'
 services:
-  api:
-    build: ./server
-  web:
-    build: .
+  backend:
+    build:
+      context: ./server
+      target: dev
+    env_file:
+      - ./server/.env
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./server:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app
+    networks:
+      - keis_crm_dev
+
+  frontend:
+    image: node:20
+    working_dir: /app
+    environment:
+      NODE_ENV: development
+      npm_config_production: "false"   # обязателен, чтобы ставились devDependencies (vite)
+      CHOKIDAR_USEPOLLING: "true"
+      VITE_API_BASE: http://localhost:8001
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./:/app
+      - /app/node_modules
+    command: sh -lc "npm ci && npm run dev -- --host"
+    depends_on:
+      - backend
+    networks:
+      - keis_crm_dev
+
+networks:
+  keis_crm_dev:
