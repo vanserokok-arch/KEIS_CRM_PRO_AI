@@ -3,50 +3,66 @@ name: Deploy to Staging Server
 on:
   push:
     branches: [staging]
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
-      - name: SSH to staging and deploy
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Load SSH key
+        uses: webfactory/ssh-agent@v0.9.0
         with:
-          host: ${{ secrets.STAGING_HOST }}      # 94.241.141.3
-          username: ${{ secrets.STAGING_USER }}  # root
-          key: ${{ secrets.STAGING_KEY }}        # ПРИВАТНЫЙ ключ (многострочный)
-          port: 22
-          script_stop: true
-          timeout: 2m
-          command_timeout: 2m
-          script: |
-            set -euo pipefail
+          ssh-private-key: ${{ secrets.STAGING_KEY }}
 
-            mkdir -p /srv/keis
+      - name: Add host to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.STAGING_HOST }} >> ~/.ssh/known_hosts
 
-            # docker-compose.yml для сервера
-            cat >/srv/keis/docker-compose.yml <<'YML'
-            services:
-              app:
-                image: ghcr.io/vanserokok-arch/keis_crm_pro_ai:latest
-                # Если пушите в Docker Hub, замените строку выше на:
-                # image: ${DOCKER_USER}/keis_crm_pro_ai:latest
-                environment:
-                  PUBLIC_API_BASE: http://localhost:8000/api
-                ports:
-                  - "8000:8000"
-                restart: unless-stopped
-            YML
+      - name: SSH smoke test
+        run: |
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
+            'docker --version || { echo "Docker is not installed on the server"; exit 1; }'
 
-            # Логин в реестр (Docker Hub) — если используете Docker Hub
-            echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin || true
+      - name: Deploy compose on server (Docker Hub)
+        run: |
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            ${{ secrets.STAGING_USER }}@${{ secrets.STAGING_HOST }} \
+            "export DOCKER_USER='${{ secrets.DOCKER_USERNAME }}'; export DOCKER_PASS='${{ secrets.DOCKER_PASSWORD }}'; bash -s" <<'EOSSH'
+          set -euo pipefail
+          mkdir -p /srv/keis
+          export COMPOSE_PROJECT_NAME=keis
 
-            # Подтянуть актуальный образ и поднять
-            if docker compose version >/dev/null 2>&1; then
-              COMPOSE="docker compose"
-            else
-              COMPOSE="docker-compose"
-            fi
+          # If Docker Hub credentials are provided (private repo or rate limits), login safely via stdin
+          if [ -n "${DOCKER_USER:-}" ] && [ -n "${DOCKER_PASS:-}" ]; then
+            echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin || true
+          fi
 
-            $COMPOSE -f /srv/keis/docker-compose.yml pull
-            $COMPOSE -f /srv/keis/docker-compose.yml up -d
+          # Write docker-compose.yml on the server (pulling image from Docker Hub)
+          cat > /srv/keis/docker-compose.yml <<'YML'
+          services:
+            app:
+              image: docker.io/vanserokok/keis-crm-pro-ai:latest
+              pull_policy: always
+              environment:
+                PUBLIC_API_BASE: http://localhost:8000/api
+              ports:
+                - "8000:8000"
+              restart: unless-stopped
+          YML
+
+          # Choose compose CLI
+          if docker compose version >/dev/null 2>&1; then
+            COMPOSE="docker compose"
+          else
+            COMPOSE="docker-compose"
+          fi
+
+          $COMPOSE -f /srv/keis/docker-compose.yml pull --quiet || true
+          $COMPOSE -f /srv/keis/docker-compose.yml up -d
+          docker image prune -f >/dev/null 2>&1 || true
+          EOSSH
