@@ -1,4 +1,4 @@
-name: ci: build multi-arch image for GHCR & Docker Hub
+name: "ci: build multi-arch image for GHCR & Docker Hub"
 
 on:
   push:
