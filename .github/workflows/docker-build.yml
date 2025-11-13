@@ -1,71 +1,22 @@
-name: ci: build multi-arch image for GHCR & Docker Hub
+name: ci: local docker build check
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
 
-env:
-  IMAGE_NAME: keis_crm_pro_ai
-
 jobs:
-  build-and-push:
+  build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
 
     steps:
-      - name: Checkout repo
+      - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Login to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          registry: docker.io
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Prepare tags
-        id: prep
-        run: |
-          SHA=${GITHUB_SHA::7}
-
-          DH_IMAGE=docker.io/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}
-          GHCR_IMAGE=ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
-
-          echo "dh_latest=$DH_IMAGE:latest" >> $GITHUB_OUTPUT
-          echo "dh_sha=$DH_IMAGE:$SHA" >> $GITHUB_OUTPUT
-          echo "ghcr_latest=$GHCR_IMAGE:latest" >> $GITHUB_OUTPUT
-          echo "ghcr_sha=$GHCR_IMAGE:$SHA" >> $GITHUB_OUTPUT
-
-      - name: Build and push (Docker Hub + GHCR)
-        uses: docker/build-push-action@v5
+      - name: Build image (no push)
+        uses: docker/build-push-action@v6
         with:
           context: .
-          file: server/Dockerfile
-          target: prod
-          push: true
-          platforms: linux/amd64,linux/arm64
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          tags: |
-            ${{ steps.prep.outputs.ghcr_latest }}
-            ${{ steps.prep.outputs.ghcr_sha }}
-            ${{ steps.prep.outputs.dh_latest }}
-            ${{ steps.prep.outputs.dh_sha }}
-          build-args: |
-            VITE_API_BASE=http://94.241.141.3:8001/api
+          file: Dockerfile
+          push: false
