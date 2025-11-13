@@ -18,6 +18,8 @@
   },
   "devDependencies": {
     "@types/node": "^20.19.24",
+    "@types/react": "^19.2.4",
+    "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.0",
     "typescript": "^5.4.0",
     "undici-types": "^6.21.0",
