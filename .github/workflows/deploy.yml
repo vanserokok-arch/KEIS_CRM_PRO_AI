@@ -3,7 +3,7 @@ name: deploy to production server
 on:
   workflow_run:
     workflows:
-      - ci: build multi-arch image for GHCR & Docker Hub
+      - "ci: build multi-arch image for GHCR & Docker Hub"
     types:
       - completed
 
