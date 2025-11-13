@@ -1,4 +1,4 @@
-name: ci: local docker build check
+name: "ci: local docker build check"
 
 on:
   workflow_dispatch:
